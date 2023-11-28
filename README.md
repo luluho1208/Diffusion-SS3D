@@ -19,26 +19,37 @@ You can follow the steps below to install the above dependencies:
 # Create and activate virtualenv
 conda create -n myenv python=3.7.16
 conda activate myenv
+```
 
-# Install NumPy
+Install NumPy
+```
 pip install numpy==1.21.5
+```
 
-# Install PyTorch according to your CUDA version.
+Install PyTorch according to your CUDA version.
+```
 conda install pytorch==1.10.1 torchvision==0.11.2 torchaudio==0.10.1 cudatoolkit=11.3 -c pytorch -c conda-forge
+```
 
-# Install and register for [wandb](https://wandb.ai/site)
+Install and register for [wandb](https://wandb.ai/site)
+```
 pip install wandb
- 
-# Compile the CUDA code for PointNet++, which is used in the backbone network.
-# If you have any probelm about this part, you can refer to [Pointnet2/Pointnet++ PyTorch](https://github.com/erikwijmans/Pointnet2_PyTorch#building-only-the-cuda-kernels)
+```
+
+Compile the CUDA code for PointNet++, which is used in the backbone network. If you have any probelm about this part, you can refer to [Pointnet2/Pointnet++ PyTorch](https://github.com/erikwijmans/Pointnet2_PyTorch#building-only-the-cuda-kernels)
+```
 cd pointnet2
 python setup.py install
+```
 
-# Compile the CUDA code for general 3D IoU calculation in [OpenPCDet](https://github.com/open-mmlab/OpenPCDet):
+Compile the CUDA code for general 3D IoU calculation in [OpenPCDet](https://github.com/open-mmlab/OpenPCDet):
+```
 cd OpenPCDet
 python setup.py develop
+```
 
-# Install dependencies:
+Install dependencies:
+```
 pip install -r requirements.txt
 ```
 
