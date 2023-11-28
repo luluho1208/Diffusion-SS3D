@@ -65,13 +65,6 @@ parser.add_argument("--use_wandb", action="store_true")
 FLAGS = parser.parse_args()
 ################################ END ################################
 
-# source ~/.bashrc; conda activate 3diou_thesis_env
-os.chdir(sys.path[0])
-os.environ["CUDA_VISIBLE_DEVICES"] = "9"
-FLAGS.log_dir = "./results/pretrain/p_1125_test1"
-FLAGS.use_wandb = True
-
-
 # ------------------------------------------------------------------------- GLOBAL CONFIG BEG
 print("************************** GLOBAL CONFIG BEG **************************")
 
@@ -153,7 +146,7 @@ TRAIN_DATALOADER = DataLoader(TRAIN_DATASET, batch_size=BATCH_SIZE, shuffle=True
 TEST_DATALOADER  = DataLoader(TEST_DATASET,  batch_size=BATCH_SIZE, shuffle=False, num_workers=4, worker_init_fn=my_worker_init_fn)
 
 if FLAGS.use_wandb:
-    wandb.init(project=("3dioumatch_pretrain" + str(FLAGS.data_ratio)), entity="luluho", name=os.path.basename(LOG_DIR))
+    wandb.init(project=("Diffusion-SS3D_pretrain" + str(FLAGS.data_ratio)), entity="dev", name=os.path.basename(LOG_DIR))
     wandb.config = {"learning_rate": BASE_LEARNING_RATE, "epochs": MAX_EPOCH, "batch_size": BATCH_SIZE}
 
 

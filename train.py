@@ -74,13 +74,6 @@ FLAGS = parser.parse_args()
 print(FLAGS)
 ################################ END ################################
 
-# source ~/.bashrc; conda activate 3diou_thesis_env
-os.chdir(sys.path[0])
-os.environ["CUDA_VISIBLE_DEVICES"] = "9"
-FLAGS.detector_checkpoint = "./results/pretrain/p_1124_4/best_checkpoint_sum.tar"
-FLAGS.log_dir = "./results/train/t_1127_G9_tmux12"
-FLAGS.use_wandb = True
-
 # ------------------------------------------------------------------------- GLOBAL CONFIG BEG
 print("\n************************** GLOBAL CONFIG BEG **************************")
 
@@ -172,7 +165,7 @@ TEST_DATALOADER = DataLoader(
 )
 
 if FLAGS.use_wandb:
-    wandb.init(project=("3dioumatch_train" + str(FLAGS.data_ratio)), entity="luluho", name=os.path.basename(LOG_DIR))
+    wandb.init(project=("Diffusion-SS3D_train" + str(FLAGS.data_ratio)), entity="dev", name=os.path.basename(LOG_DIR))
     wandb.config = {"learning_rate": BASE_LEARNING_RATE, "epochs": MAX_EPOCH, "batch_size": BATCH_SIZE}
 
 # Used for Pseudo box generation and AP calculation

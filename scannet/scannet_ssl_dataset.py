@@ -26,9 +26,7 @@ class ScannetSSLLabeledDataset(Dataset):
     def __init__(self, labeled_sample_list=None, num_points=20000, use_color=False, use_height=False, augment=False):
 
         print('--------- Scannet Labeled Dataset Initialization ---------')
-        # self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
-        # upload
-        self.data_path = os.path.join('/home/cjho/Shared_Dataset', 'scannet_train_detection_data')
+        self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
         if labeled_sample_list is not None:
             self.scan_names = [x.strip() for x in open(
                 os.path.join(ROOT_DIR, 'scannet/meta_data', labeled_sample_list)).readlines()]
@@ -215,9 +213,7 @@ class ScannetSSLUnlabeledDataset(Dataset):
     def __init__(self, labeled_sample_list=None, num_points=20000, use_color=False,
                  use_height=False, augment=True, load_labels=False):
         print('----------------Scannet Unlabeled Dataset Initialization----------------')
-        # self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
-        # upload
-        self.data_path = os.path.join('/home/cjho/Shared_Dataset', 'scannet_train_detection_data')
+        self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
         all_scan_names = list(set([os.path.basename(x)[0:12] \
                                    for x in os.listdir(self.data_path) if x.startswith('scene')]))
         split_filenames = os.path.join(ROOT_DIR, 'scannet/meta_data/scannetv2_train.txt')

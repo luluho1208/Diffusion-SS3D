@@ -31,6 +31,11 @@ Install PyTorch according to your CUDA version.
 conda install pytorch==1.10.1 torchvision==0.11.2 torchaudio==0.10.1 cudatoolkit=11.3 -c pytorch -c conda-forge
 ```
 
+Install TensorFlow (for TensorBoard) (We tested this repo with TensorFlow 2.9.1.)
+```
+pip install tensorflow
+```
+
 Install and register for [wandb](https://wandb.ai/site)
 ```
 pip install wandb
@@ -55,36 +60,42 @@ pip install -r requirements.txt
 
 ## Dataset
 ### ScanNet
-Please download the ScanNet data following the [README](https://github.com/nomiaro/OPA/blob/main/scannet/README.md) in scannet folder.
+Please download the ScanNet data following the [README](https://github.com/luluho1208/Diffusion-SS3D/tree/main/scannet/README.md) in scannet folder.
 
 ## Download Pre-trained and Trained Models
 We provided the pre-trained models of ScanNet 5%:
 We also provided the trained model of ScanNet 5%:
 
 ## Pre-training
-Pre-train with script.
 ```
-sh run_pretrain.sh <GPU_ID> <LOG_DIR> <LABELED_LIST>
+sh run_pretrain.sh <GPU_ID> <LOG_DIR> <DATA_RATIO> <LABELED_LIST>
 ```
 For example:
 ```
-sh run_pretrain.sh 0 results/pretrain scannetv2_train_0.05.txt
+sh run_pretrain.sh 0 results/pretrain 0.05 scannetv2_train_0.05.txt
 ```
 
 ## Training
-After pre-training or downloading the checkpoint, you can train with script as follow.
 ```
-sh run_train.sh <GPU_ID> <LOG_DIR> <LABELED_LIST> <PRETRAINED_DETECOR_CKPT>
+sh run_train.sh <GPU_ID> <LOG_DIR> <DATA_RATIO> <LABELED_LIST> <PRETRAINED_CKPT>
 ```
 For example:
 ```
-sh run_train.sh 0 results/train scannetv2_train_0.05.txt results/pretrain/best_checkpoint_sum.tar
+sh run_train.sh 0 results/train 0.05 scannetv2_train_0.05.txt results/pretrain/best_checkpoint_sum.tar
 ```
 
 ## Evaluation
-After training or downloading the checkpoint, you can evaluate with script as follow.
 ```
-sh run_eval_opt.sh <GPU_ID> <LOG_DIR> <LABELED_LIST> <CKPT> <OPT_RATE>
+sh run_eval.sh <GPU_ID> <LOG_DIR> <DATA_RATIO> <LABELED_LIST> <CKPT>
+```
+For example:
+```
+sh run_eval.sh 0 results/eval 0.05 scannetv2_train_0.05.txt results/train/best_checkpoint_sum.tar
+```
+
+## Evaluation with IoU Optimization
+```
+sh run_eval_opt.sh <GPU_ID> <LOG_DIR> <DATA_RATIO> <LABELED_LIST> <CKPT> <OPT_RATE>
 ```
 The number of steps (of optimization) is by default 10.
 

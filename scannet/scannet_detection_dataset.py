@@ -35,8 +35,7 @@ class ScannetDetectionDataset(Dataset):
                         use_color=False, use_height=False, augment=False, remove_obj=False, test_transductive=False):
 
         print('--------- DetectionDataset ', split_set, ' Initialization ---------')
-        # upload
-        self.data_path = os.path.join('/home/cjho/Shared_Dataset', 'scannet_train_detection_data')
+        self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
         all_scan_names = list(set([os.path.basename(x)[0:12] \
             for x in os.listdir(self.data_path) if x.startswith('scene')]))
         if split_set=='all':            
