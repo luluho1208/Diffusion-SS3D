@@ -2,6 +2,7 @@
 
 Author: Zhao Na, 2019
 Modified by Yezhen Cong, 2020
+Modified by ChengJu Ho, 2023
 """
 
 import os
@@ -123,7 +124,7 @@ def compute_objectness_loss(end_points, supervised_inds):
     return objectness_loss, objectness_label, objectness_mask, object_assignment
 
 
-def compute_box_and_sem_cls_loss(end_points, supervised_inds, dataset_config, config_dict):
+def compute_box_and_sem_cls_loss(end_points, supervised_inds, dataset_config):
     """ Compute 3D bounding box and semantic classification loss.
 
     Args:
@@ -216,6 +217,11 @@ def compute_box_and_sem_cls_loss(end_points, supervised_inds, dataset_config, co
         (sem_cls_label == end_points['sem_cls_scores'][supervised_inds, ...].argmax(dim=-1)) * objectness_label) / (
                                     torch.sum(objectness_label) + 1e-6)
 
+    # 3.5 Diffusion cls loss
+    diffusion_criterion_sem_cls = nn.CrossEntropyLoss(reduction='none')
+    diffusion_sem_cls_loss = diffusion_criterion_sem_cls(end_points['label_cls_scores'][supervised_inds, ...].transpose(2, 1), sem_cls_label)  # (B,K)
+    diffusion_sem_cls_loss = torch.sum(diffusion_sem_cls_loss * objectness_label) / (torch.sum(objectness_label) + 1e-6)
+
     iou_labels, _, iou_assignment = compute_iou_labels(
         # aggregated_vote_xyz -> center
         end_points, supervised_inds, end_points['aggregated_vote_xyz'][supervised_inds, ...],
@@ -294,10 +300,10 @@ def compute_box_and_sem_cls_loss(end_points, supervised_inds, dataset_config, co
         iou_loss = iou_loss.mean()
         end_points['iou_loss'] = iou_loss
 
-    return center_loss, heading_class_loss, heading_residual_normalized_loss, size_class_loss, size_residual_normalized_loss, sem_cls_loss
+    return center_loss, heading_class_loss, heading_residual_normalized_loss, size_class_loss, size_residual_normalized_loss, sem_cls_loss, diffusion_sem_cls_loss
 
 
-def get_labeled_loss(end_points, dataset_config, config_dict):
+def get_labeled_loss(end_points, dataset_config, diffusion_config):
     """ Loss functions for supervised samples in training detector
 
     Args:
@@ -341,18 +347,20 @@ def get_labeled_loss(end_points, dataset_config, config_dict):
         torch.sum(objectness_mask.float()) / float(total_num_proposal) - end_points['pos_ratio']
 
     # Box loss and sem cls loss
-    center_loss, heading_cls_loss, heading_reg_loss, size_cls_loss, size_reg_loss, sem_cls_loss = \
-        compute_box_and_sem_cls_loss(end_points, supervised_inds, dataset_config, config_dict)
+    center_loss, heading_cls_loss, heading_reg_loss, size_cls_loss, size_reg_loss, sem_cls_loss, diffusion_sem_cls_loss = \
+        compute_box_and_sem_cls_loss(end_points, supervised_inds, dataset_config)
     end_points['center_loss'] = center_loss
     end_points['heading_cls_loss'] = heading_cls_loss
     end_points['heading_reg_loss'] = heading_reg_loss
     end_points['size_cls_loss'] = size_cls_loss
     end_points['size_reg_loss'] = size_reg_loss
     end_points['sem_cls_loss'] = sem_cls_loss
+    end_points['diffusion_sem_cls_loss'] = diffusion_sem_cls_loss
     box_loss = 0.1 * heading_cls_loss + heading_reg_loss + 0.1 * size_cls_loss + size_reg_loss + center_loss
     end_points['box_loss'] = box_loss
 
-    votenet_loss = vote_loss + 0.5 * objectness_loss + box_loss + 0.1 * sem_cls_loss
+    votenet_loss = vote_loss + 0.5 * objectness_loss + box_loss + 0.1 * sem_cls_loss + diffusion_config['label_loss_weight'] * diffusion_sem_cls_loss
+
     votenet_loss = votenet_loss + end_points['iou_loss']
     if 'jitter_iou_loss' in end_points.keys():
         votenet_loss = votenet_loss + end_points['jitter_iou_loss']

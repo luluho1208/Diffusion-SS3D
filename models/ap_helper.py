@@ -4,8 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 
 # Modified by Zhao Na, 2019
-
 # Modified by Yezhen Cong, 2020
+# Modified by ChengJu Ho, 2023
 
 """ Helper functions and class to calculate Average Precisions for 3D object detection.
 """
@@ -22,8 +22,21 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 from utils.eval_det import eval_det_multiprocessing, get_iou_obb
 from utils.nms import nms_2d_faster, nms_3d_faster, nms_3d_faster_samecls
 from utils.box_util import get_3d_box, box3d_iou
-from sunrgbd.sunrgbd_utils import extract_pc_in_box3d
 from utils.pc_util import random_sampling
+
+# help to filter points with bbox
+def in_hull(p, hull):
+    from scipy.spatial import Delaunay
+
+    if not isinstance(hull, Delaunay):
+        hull = Delaunay(hull)
+    return hull.find_simplex(p) >= 0
+
+
+def extract_pc_in_box3d(pc, box3d):
+    """pc: (N,3), box3d: (8,3)"""
+    box3d_roi_inds = in_hull(pc[:, 0:3], box3d)
+    return box3d_roi_inds
 
 def flip_axis_to_camera(pc):
     ''' Flip X-right,Y-forward,Z-up to X-right,Y-down,Z-forward
@@ -111,8 +124,9 @@ def parse_predictions(end_points, config_dict):
             where j = 0, ..., num of valid detections - 1 from sample input i
     """
     pred_center = end_points['center']  # B,num_proposal,3
-    pred_sem_cls = torch.argmax(end_points['sem_cls_scores'], -1) # B,num_proposal
-    sem_cls_probs = softmax(end_points['sem_cls_scores'].detach().cpu().numpy()) # B,num_proposal,10
+    ensemble = end_points['sem_cls_scores'].detach() + end_points['label_cls_scores'].detach()
+    pred_sem_cls = torch.argmax(ensemble, -1)
+    sem_cls_probs = softmax(ensemble.detach().cpu().numpy())
     pred_sem_cls_prob = np.max(sem_cls_probs,-1) # B,num_proposal
 
     pred_corners_3d_upright_camera, pred_box_parameters = predictions2corners3d(end_points, config_dict)

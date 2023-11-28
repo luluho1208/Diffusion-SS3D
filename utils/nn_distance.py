@@ -6,6 +6,7 @@
 """ Chamfer distance in Pytorch.
 Author: Charles R. Qi
 Modified by: Yezhen Cong, 2020
+Modified by: ChengJu Ho, 2023
 """
 
 import torch
@@ -31,6 +32,39 @@ def huber_loss(error, delta=1.0):
     linear = (abs_error - quadratic)
     loss = 0.5 * quadratic**2 + delta * linear
     return loss
+
+def nn_distance_topk(pc1, pc2, k=1, l1smooth=False, delta=1.0, l1=False):
+    """
+    Input:
+        pc1: (B,N,C) torch tensor
+        pc2: (B,M,C) torch tensor
+        k: int, return top-k
+        l1smooth: bool, whether to use l1smooth loss
+        delta: scalar, the delta used in l1smooth loss
+    Output:
+        dist1: (B, N, k) torch float32 tensor
+        idx1: (B, N, k) torch int64 tensor
+        dist2: (B, k, M) torch float32 tensor
+        idx2: (B, k, M) torch int64 tensor
+    """
+    N = pc1.shape[1]
+    M = pc2.shape[1]
+    pc1_expand_tile = pc1.unsqueeze(2).expand(-1,-1,M,-1)
+    pc2_expand_tile = pc2.unsqueeze(1).expand(-1,N,-1,-1)
+    pc_diff = pc1_expand_tile - pc2_expand_tile
+    
+    if l1smooth:
+        pc_dist = torch.sum(huber_loss(pc_diff, delta), dim=-1) # (B,N,M)
+    elif l1:
+        pc_dist = torch.sum(torch.abs(pc_diff), dim=-1) # (B,N,M)
+    else:
+        pc_dist = torch.sum(pc_diff**2, dim=-1) # (B,N,M)
+    
+    
+    dist1, idx1 = torch.topk(pc_dist, k=k, dim=2, largest=False, sorted=True) # (B,N,k)
+    dist2, idx2 = torch.topk(pc_dist, k=k, dim=1, largest=False, sorted=True) # (B,k,M)
+    
+    return dist1, idx1, dist2, idx2
 
 def nn_distance(pc1, pc2, l1smooth=False, delta=1.0, l1=False):
     """

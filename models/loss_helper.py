@@ -191,7 +191,11 @@ def compute_box_and_sem_cls_loss(end_points, config, test_time=False):
         (sem_cls_label == end_points['sem_cls_scores'].argmax(dim=-1)) * objectness_label) / (
                                     torch.sum(objectness_label) + 1e-6)
 
-    # end_points['center'].retain_grad()
+    # 3.5 Diffusion cls loss
+    diffusion_criterion_sem_cls = nn.CrossEntropyLoss(reduction='none')
+    diffusion_sem_cls_loss = diffusion_criterion_sem_cls(end_points['label_cls_scores'].transpose(2,1), sem_cls_label)
+    diffusion_sem_cls_loss = torch.sum(diffusion_sem_cls_loss * objectness_label)/(torch.sum(objectness_label)+1e-6)
+
     mask = torch.arange(batch_size).cuda()
     iou_labels, iou_zero_mask, _ = compute_iou_labels(
         end_points, mask, end_points['aggregated_vote_xyz'], end_points['center'], None, None,
@@ -207,7 +211,8 @@ def compute_box_and_sem_cls_loss(end_points, config, test_time=False):
     if 'iou_scores' in end_points.keys():
         iou_pred = nn.Sigmoid()(end_points['iou_scores'])
         if iou_pred.shape[2] > 1:
-            iou_pred = torch.gather(iou_pred, 2, end_points['sem_cls_scores'].argmax(dim=-1).unsqueeze(-1)).squeeze(-1)  # use pred semantic labels
+            pred_sem_cls = end_points['sem_cls_scores'] + end_points['label_cls_scores']
+            iou_pred = torch.gather(iou_pred, 2, pred_sem_cls.argmax(dim=-1).unsqueeze(-1)).squeeze(-1)  # use pred semantic labels
         else:
             iou_pred = iou_pred.squeeze(-1)
         iou_acc = torch.abs(iou_pred - iou_labels)
@@ -217,9 +222,9 @@ def compute_box_and_sem_cls_loss(end_points, config, test_time=False):
         iou_loss = torch.sum(iou_loss * objectness_label) / (torch.sum(objectness_label) + 1e-6)
         end_points['iou_loss'] = iou_loss
 
-    return center_loss, heading_class_loss, heading_residual_normalized_loss, size_class_loss, size_residual_normalized_loss, sem_cls_loss
+    return center_loss, heading_class_loss, heading_residual_normalized_loss, size_class_loss, size_residual_normalized_loss, sem_cls_loss, diffusion_sem_cls_loss
 
-def get_loss(end_points, config, test_time=False):
+def get_loss(end_points, config, diffusion_config, test_time=False):
     """ Loss functions
 
     Args:
@@ -261,7 +266,7 @@ def get_loss(end_points, config, test_time=False):
         torch.sum(objectness_mask.float())/float(total_num_proposal) - end_points['pos_ratio']
 
     # Box loss and sem cls loss
-    center_loss, heading_cls_loss, heading_reg_loss, size_cls_loss, size_reg_loss, sem_cls_loss = \
+    center_loss, heading_cls_loss, heading_reg_loss, size_cls_loss, size_reg_loss, sem_cls_loss, diffusion_sem_cls_loss = \
         compute_box_and_sem_cls_loss(end_points, config, test_time=test_time)
     end_points['center_loss'] = center_loss
     end_points['heading_cls_loss'] = heading_cls_loss
@@ -269,11 +274,12 @@ def get_loss(end_points, config, test_time=False):
     end_points['size_cls_loss'] = size_cls_loss
     end_points['size_reg_loss'] = size_reg_loss
     end_points['sem_cls_loss'] = sem_cls_loss
+    end_points['diffusion_sem_cls_loss'] = diffusion_sem_cls_loss
     box_loss = 0.1*heading_cls_loss + heading_reg_loss + 0.1*size_cls_loss + size_reg_loss + center_loss
     end_points['box_loss'] = box_loss
 
     # Final loss function
-    loss = vote_loss + 0.5*objectness_loss + box_loss + 0.1*sem_cls_loss
+    loss = vote_loss + 0.5*objectness_loss + box_loss + 0.1*sem_cls_loss + diffusion_config['label_loss_weight'] * diffusion_sem_cls_loss
     if 'iou_loss' in end_points.keys():
         loss = loss + end_points['iou_loss']
 

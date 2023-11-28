@@ -1,6 +1,7 @@
 """ Loss functions on unlabeled data
 
 Written by Yezhen Cong, 2020
+Modified by ChengJu Ho, 2023
 """
 
 
@@ -196,7 +197,7 @@ def compute_objectness_loss(end_points, unsupervised_inds, config_dict):
     return objectness_loss, objectness_label, objectness_mask, object_assignment
 
 
-def compute_box_and_sem_cls_loss(end_points, unsupervised_inds, config, config_dict):
+def compute_box_and_sem_cls_loss(end_points, unsupervised_inds, config):
     """ Compute 3D bounding box and semantic classification loss.
 
     Args:
@@ -286,10 +287,14 @@ def compute_box_and_sem_cls_loss(end_points, unsupervised_inds, config, config_d
                                      sem_cls_label)  # (B,K)
     sem_cls_loss = torch.sum(sem_cls_loss * objectness_label) / (torch.sum(objectness_label) + 1e-6)
 
-    return center_loss, heading_class_loss, heading_residual_normalized_loss, size_class_loss, size_residual_normalized_loss, sem_cls_loss
+    # 3.5 Diffusion cls loss
+    diffusion_criterion_sem_cls = nn.CrossEntropyLoss(reduction='none')
+    diffusion_sem_cls_loss = diffusion_criterion_sem_cls(end_points['label_cls_scores'][unsupervised_inds, ...].transpose(2, 1), sem_cls_label)
+    diffusion_sem_cls_loss = torch.sum(diffusion_sem_cls_loss * objectness_label) / (torch.sum(objectness_label) + 1e-6)
 
+    return center_loss, heading_class_loss, heading_residual_normalized_loss, size_class_loss, size_residual_normalized_loss, sem_cls_loss, diffusion_sem_cls_loss
 
-def get_pseudo_detection_loss(end_points, ema_end_points, config, config_dict):
+def get_pseudo_detection_loss(end_points, config, config_dict, diffusion_config):
     """ Loss functions for supervised samples in training detector
 
     Args:
@@ -332,8 +337,8 @@ def get_pseudo_detection_loss(end_points, ema_end_points, config, config_dict):
     end_points['unlabeled_neg_ratio'] = \
         torch.sum(pseudo_objectness_mask.float()) / float(total_num_proposal) - end_points['unlabeled_pos_ratio']
     # Box loss and sem cls loss
-    center_loss, heading_cls_loss, heading_reg_loss, size_cls_loss, size_reg_loss, sem_cls_loss = \
-        compute_box_and_sem_cls_loss(end_points, unsupervised_inds, config, config_dict)
+    center_loss, heading_cls_loss, heading_reg_loss, size_cls_loss, size_reg_loss, sem_cls_loss, diffusion_sem_cls_loss = \
+        compute_box_and_sem_cls_loss(end_points, unsupervised_inds, config)
 
     end_points['unlabeled_center_loss'] = center_loss
     end_points['unlabeled_heading_cls_loss'] = heading_cls_loss
@@ -341,10 +346,11 @@ def get_pseudo_detection_loss(end_points, ema_end_points, config, config_dict):
     end_points['unlabeled_size_cls_loss'] = size_cls_loss
     end_points['unlabeled_size_reg_loss'] = size_reg_loss
     end_points['unlabeled_sem_cls_loss'] = sem_cls_loss
+    end_points['unlabeled_diffusion_sem_cls_loss'] = diffusion_sem_cls_loss
     box_loss = 0.1 * heading_cls_loss + heading_reg_loss + 0.1 * size_cls_loss + size_reg_loss + center_loss
     end_points['unlabeled_box_loss'] = box_loss
 
-    unlabeled_loss = box_loss + 0.1 * sem_cls_loss
+    unlabeled_loss = box_loss + 0.1 * sem_cls_loss + diffusion_config['label_loss_weight'] * diffusion_sem_cls_loss
 
     unlabeled_loss *= 10
     end_points['unlabeled_detection_loss'] = unlabeled_loss
@@ -361,9 +367,7 @@ def get_pseudo_detection_loss(end_points, ema_end_points, config, config_dict):
     return unlabeled_loss, end_points
 
 
-def get_pseudo_labels(end_points, ema_end_points, pred_center, pred_sem_cls, pred_objectness, pred_heading_scores,
-                      pred_heading_residuals,
-                      pred_size_scores, pred_size_residuals, pred_vote_xyz, config_dict):
+def get_pseudo_labels(end_points, ema_end_points, pred_center, pred_sem_cls, pred_objectness, pred_heading_scores, pred_heading_residuals, pred_size_scores, pred_size_residuals, pred_vote_xyz, config_dict):
     batch_size, num_proposal = pred_center.shape[:2]
     label_mask = torch.zeros((batch_size, MAX_NUM_OBJ), dtype=torch.long).cuda()
 
@@ -538,11 +542,11 @@ def get_pseudo_labels(end_points, ema_end_points, pred_center, pred_sem_cls, pre
     return label_mask, center_label, sem_cls_label, heading_label, heading_residual_label, size_label, size_residual_label, false_center_label, iou_label
 
 
-def get_unlabeled_loss(end_points, ema_end_points, config, config_dict):
+def get_unlabeled_loss(end_points, ema_end_points, config, config_dict, diffusion_config):
     unlabeled_batch_size = config_dict['unlabeled_batch_size']
     labeled_num = torch.nonzero(end_points['supervised_mask']).squeeze(1).shape[0]
     pred_center = ema_end_points['center'][labeled_num:]
-    pred_sem_cls = ema_end_points['sem_cls_scores'][labeled_num:]
+    pred_sem_cls = ema_end_points['sem_cls_scores'][labeled_num:] + ema_end_points['label_cls_scores'][labeled_num:]
     pred_objectness = ema_end_points['objectness_scores'][labeled_num:]
     pred_heading_scores = ema_end_points['heading_scores'][labeled_num:]
     pred_heading_residuals = ema_end_points['heading_residuals'][labeled_num:]
@@ -566,11 +570,6 @@ def get_unlabeled_loss(end_points, ema_end_points, config, config_dict):
                                       end_points['flip_y_axis'][labeled_num:],
                                       end_points['rot_mat'][labeled_num:], end_points['scale'][labeled_num:])
     size_residual_label = trans_size(size_label, size_residual_label, end_points['scale'][labeled_num:], config)
-    if config_dict['dataset'] == 'sunrgbd':
-        heading_label, heading_residual_label = trans_angle(heading_label, heading_residual_label,
-                                                            end_points['flip_x_axis'][labeled_num:],
-                                                            end_points['flip_y_axis'][labeled_num:],
-                                                            end_points['rot_angle'][labeled_num:], config)
 
     if config_dict['view_stats']:
         # also transform gt labels for gt objectness cheating
@@ -595,6 +594,6 @@ def get_unlabeled_loss(end_points, ema_end_points, config, config_dict):
     end_points['unlabeled_false_center_label'] = false_center_label
     end_points['unlabeled_iou_label'] = iou_label
 
-    consistency_loss, end_points = get_pseudo_detection_loss(end_points, ema_end_points, config, config_dict)
+    consistency_loss, end_points = get_pseudo_detection_loss(end_points, config, config_dict, diffusion_config)
 
     return consistency_loss, end_points

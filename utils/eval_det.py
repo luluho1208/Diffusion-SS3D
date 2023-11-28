@@ -23,7 +23,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scannet.model_util_scannet import ScannetDatasetConfig
-from sunrgbd.model_util_sunrgbd import SunrgbdDatasetConfig
 
 
 def voc_ap(rec, prec, classname, ovthresh, use_07_metric=False):

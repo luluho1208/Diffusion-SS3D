@@ -6,6 +6,7 @@
 
 # Modified by Zhao Na, 2019
 # Modified by Yezhen Cong, 2020
+# Modified by ChengJu Ho, 2023
 
 """ Dataset for object bounding box regression.
 An axis aligned bounding box is parameterized by (cx,cy,cz) and (dx,dy,dz)
@@ -34,7 +35,8 @@ class ScannetDetectionDataset(Dataset):
                         use_color=False, use_height=False, augment=False, remove_obj=False, test_transductive=False):
 
         print('--------- DetectionDataset ', split_set, ' Initialization ---------')
-        self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
+        # upload
+        self.data_path = os.path.join('/home/cjho/Shared_Dataset', 'scannet_train_detection_data')
         all_scan_names = list(set([os.path.basename(x)[0:12] \
             for x in os.listdir(self.data_path) if x.startswith('scene')]))
         if split_set=='all':            
@@ -215,6 +217,20 @@ class ScannetDetectionDataset(Dataset):
         ret_dict['pcl_color'] = pcl_color
         ret_dict['supervised_mask'] = np.array(1).astype(np.int64)
 
+        ret_dict['size_label'] = target_bboxes.astype(np.float32)[:,3:]
+        ret_dict['num_gt'] = np.array(instance_bboxes.shape[0]).astype(np.int64)
+        
+        ret_dict['pc_xmin'] = point_cloud[:, 0].min(0).astype(np.float32)
+        ret_dict['pc_xmax'] = point_cloud[:, 0].max(0).astype(np.float32)
+        ret_dict['pc_ymin'] = point_cloud[:, 1].min(0).astype(np.float32)
+        ret_dict['pc_ymax'] = point_cloud[:, 1].max(0).astype(np.float32)
+        ret_dict['pc_zmin'] = point_cloud[:, 2].min(0).astype(np.float32)
+        ret_dict['pc_zmax'] = point_cloud[:, 2].max(0).astype(np.float32)
+        
+        ret_dict['length'] = ret_dict['pc_xmax'] - ret_dict['pc_xmin']
+        ret_dict['width']  = ret_dict['pc_ymax'] - ret_dict['pc_ymin']
+        ret_dict['height'] = ret_dict['pc_zmax'] - ret_dict['pc_zmin']
+        
         scene_label = np.zeros(DC.num_class)
         unique_class_ind = list(set(class_ind))
         for ind in unique_class_ind:

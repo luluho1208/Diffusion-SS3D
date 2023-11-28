@@ -1,11 +1,11 @@
-""" Labeled and unlabeled dataset for 3DIoUMatch
+""" Labeled and unlabeled dataset for Diffusion-SS3D
 
 Author: Zhao Na, 2019
 Modified by Yezhen Cong, 2020
+Modified by ChengJu Ho, 2023
 """
 import os
 import sys
-import random
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -26,7 +26,9 @@ class ScannetSSLLabeledDataset(Dataset):
     def __init__(self, labeled_sample_list=None, num_points=20000, use_color=False, use_height=False, augment=False):
 
         print('--------- Scannet Labeled Dataset Initialization ---------')
-        self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
+        # self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
+        # upload
+        self.data_path = os.path.join('/home/cjho/Shared_Dataset', 'scannet_train_detection_data')
         if labeled_sample_list is not None:
             self.scan_names = [x.strip() for x in open(
                 os.path.join(ROOT_DIR, 'scannet/meta_data', labeled_sample_list)).readlines()]
@@ -52,7 +54,7 @@ class ScannetSSLLabeledDataset(Dataset):
             sem_cls_label: (MAX_NUM_OBJ,) semantic class index
             angle_class_label: (MAX_NUM_OBJ,) with int values in 0,...,NUM_HEADING_BIN-1
             angle_residual_label: (MAX_NUM_OBJ,)
-            size_classe_label: (MAX_NUM_OBJ,) with int values in 0,...,NUM_SIZE_CLUSTER
+            size_class_label: (MAX_NUM_OBJ,) with int values in 0,...,NUM_SIZE_CLUSTER
             size_residual_label: (MAX_NUM_OBJ,3)
             box_label_mask: (MAX_NUM_OBJ) as 0/1 with 1 indicating a unique box
             point_votes: (N,3) with votes XYZ
@@ -77,7 +79,7 @@ class ScannetSSLLabeledDataset(Dataset):
             height = raw_point_cloud[:, 2] - floor_height
             raw_point_cloud = np.concatenate([raw_point_cloud, np.expand_dims(height, 1)], 1)
 
-            # ------------------------------- LABELS ------------------------------
+        # ------------------------------- LABELS ------------------------------
         target_bboxes = np.zeros((MAX_NUM_OBJ, 6))
         target_bboxes_mask = np.zeros((MAX_NUM_OBJ))
         angle_classes = np.zeros((MAX_NUM_OBJ,))
@@ -168,6 +170,20 @@ class ScannetSSLLabeledDataset(Dataset):
         ret_dict['scan_idx'] = np.array(idx).astype(np.int64)
         ret_dict['supervised_mask'] = np.array(1).astype(np.int64)
 
+        ret_dict['size_label'] = target_bboxes.astype(np.float32)[:,3:]
+        ret_dict['num_gt'] = np.array(instance_bboxes.shape[0]).astype(np.int64)
+        
+        ret_dict['pc_xmin'] = point_cloud[:, 0].min(0).astype(np.float32)
+        ret_dict['pc_xmax'] = point_cloud[:, 0].max(0).astype(np.float32)
+        ret_dict['pc_ymin'] = point_cloud[:, 1].min(0).astype(np.float32)
+        ret_dict['pc_ymax'] = point_cloud[:, 1].max(0).astype(np.float32)
+        ret_dict['pc_zmin'] = point_cloud[:, 2].min(0).astype(np.float32)
+        ret_dict['pc_zmax'] = point_cloud[:, 2].max(0).astype(np.float32)
+        
+        ret_dict['length'] = ret_dict['pc_xmax'] - ret_dict['pc_xmin']
+        ret_dict['width']  = ret_dict['pc_ymax'] - ret_dict['pc_ymin']
+        ret_dict['height'] = ret_dict['pc_zmax'] - ret_dict['pc_zmin']
+
         scene_label = np.zeros(DC.num_class)
         unique_class_ind = list(set(class_ind))
         for ind in unique_class_ind:
@@ -181,6 +197,17 @@ class ScannetSSLLabeledDataset(Dataset):
         ret_dict['rot_angle'] = np.array(rot_angle).astype(np.float32)
         ret_dict['scale'] = np.array(scale_ratio).astype(np.float32)
 
+        ret_dict['ema_pc_xmin'] = ema_point_cloud[:, 0].min(0).astype(np.float32)
+        ret_dict['ema_pc_xmax'] = ema_point_cloud[:, 0].max(0).astype(np.float32)
+        ret_dict['ema_pc_ymin'] = ema_point_cloud[:, 1].min(0).astype(np.float32)
+        ret_dict['ema_pc_ymax'] = ema_point_cloud[:, 1].max(0).astype(np.float32)
+        ret_dict['ema_pc_zmin'] = ema_point_cloud[:, 2].min(0).astype(np.float32)
+        ret_dict['ema_pc_zmax'] = ema_point_cloud[:, 2].max(0).astype(np.float32)
+        
+        ret_dict['ema_length'] = ret_dict['ema_pc_xmax'] - ret_dict['ema_pc_xmin']
+        ret_dict['ema_width']  = ret_dict['ema_pc_ymax'] - ret_dict['ema_pc_ymin']
+        ret_dict['ema_height'] = ret_dict['ema_pc_zmax'] - ret_dict['ema_pc_zmin']
+        
         return ret_dict
 
 
@@ -188,7 +215,9 @@ class ScannetSSLUnlabeledDataset(Dataset):
     def __init__(self, labeled_sample_list=None, num_points=20000, use_color=False,
                  use_height=False, augment=True, load_labels=False):
         print('----------------Scannet Unlabeled Dataset Initialization----------------')
-        self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
+        # self.data_path = os.path.join(BASE_DIR, 'scannet_train_detection_data')
+        # upload
+        self.data_path = os.path.join('/home/cjho/Shared_Dataset', 'scannet_train_detection_data')
         all_scan_names = list(set([os.path.basename(x)[0:12] \
                                    for x in os.listdir(self.data_path) if x.startswith('scene')]))
         split_filenames = os.path.join(ROOT_DIR, 'scannet/meta_data/scannetv2_train.txt')
@@ -277,6 +306,7 @@ class ScannetSSLUnlabeledDataset(Dataset):
             ret_dict['size_class_label'] = size_classes.astype(np.int64)
             ret_dict['size_residual_label'] = size_residuals.astype(np.float32)
             ret_dict['sem_cls_label'] = target_bboxes_semcls.astype(np.int64)
+            ret_dict['size_label'] = target_bboxes.astype(np.float32)[:,3:]
 
         point_cloud, choices = pc_util.random_sampling(raw_point_cloud, self.num_points, return_choices=True)
         # ------------------------------- DATA AUGMENTATION ------------------------------
@@ -317,4 +347,28 @@ class ScannetSSLUnlabeledDataset(Dataset):
         ret_dict['scan_idx'] = np.array(idx).astype(np.int64)
         ret_dict['supervised_mask'] = np.array(0).astype(np.int64)
 
+        ret_dict['pc_xmin'] = point_cloud[:, 0].min(0).astype(np.float32)
+        ret_dict['pc_xmax'] = point_cloud[:, 0].max(0).astype(np.float32)
+        ret_dict['pc_ymin'] = point_cloud[:, 1].min(0).astype(np.float32)
+        ret_dict['pc_ymax'] = point_cloud[:, 1].max(0).astype(np.float32)
+        ret_dict['pc_zmin'] = point_cloud[:, 2].min(0).astype(np.float32)
+        ret_dict['pc_zmax'] = point_cloud[:, 2].max(0).astype(np.float32)
+        
+        ret_dict['length'] = ret_dict['pc_xmax'] - ret_dict['pc_xmin']
+        ret_dict['width']  = ret_dict['pc_ymax'] - ret_dict['pc_ymin']
+        ret_dict['height'] = ret_dict['pc_zmax'] - ret_dict['pc_zmin']
+        
+        ret_dict['ema_pc_xmin'] = ema_point_cloud[:, 0].min(0).astype(np.float32)
+        ret_dict['ema_pc_xmax'] = ema_point_cloud[:, 0].max(0).astype(np.float32)
+        ret_dict['ema_pc_ymin'] = ema_point_cloud[:, 1].min(0).astype(np.float32)
+        ret_dict['ema_pc_ymax'] = ema_point_cloud[:, 1].max(0).astype(np.float32)
+        ret_dict['ema_pc_zmin'] = ema_point_cloud[:, 2].min(0).astype(np.float32)
+        ret_dict['ema_pc_zmax'] = ema_point_cloud[:, 2].max(0).astype(np.float32)
+        
+        ret_dict['ema_length'] = ret_dict['ema_pc_xmax'] - ret_dict['ema_pc_xmin']
+        ret_dict['ema_width']  = ret_dict['ema_pc_ymax'] - ret_dict['ema_pc_ymin']
+        ret_dict['ema_height'] = ret_dict['ema_pc_zmax'] - ret_dict['ema_pc_zmin']
+        
+        ret_dict['num_gt'] = np.array(0).astype(np.int64)
+        
         return ret_dict
