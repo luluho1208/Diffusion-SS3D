@@ -36,7 +36,8 @@ Install TensorFlow (for TensorBoard) (We tested this repo with TensorFlow 2.9.1.
 pip install tensorflow
 ```
 
-Install and register for [wandb](https://wandb.ai/site) [QuickStart](https://docs.wandb.ai/quickstart)
+Install and register for [wandb](https://wandb.ai/site) 
+[QuickStart](https://docs.wandb.ai/quickstart)
 ```
 pip install wandb
 ```
@@ -64,6 +65,7 @@ Please download the ScanNet data following the [README](https://github.com/luluh
 
 ## Download Pre-trained and Trained Models
 We provide the pre-trained models of ScanNet 5%: [Link](https://drive.google.com/file/d/1K1l8TbGKnXD4bOzdHVoxQ1775yACQK9e/view?usp=sharing)
+
 We provide the trained model of ScanNet 5%: [Link](https://drive.google.com/file/d/1g12CrVly8B1xXit7iEw9Et8_vokNc5DG/view?usp=sharing)
 
 ## Pre-training
