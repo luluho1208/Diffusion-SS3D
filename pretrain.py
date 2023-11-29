@@ -146,7 +146,7 @@ TRAIN_DATALOADER = DataLoader(TRAIN_DATASET, batch_size=BATCH_SIZE, shuffle=True
 TEST_DATALOADER  = DataLoader(TEST_DATASET,  batch_size=BATCH_SIZE, shuffle=False, num_workers=4, worker_init_fn=my_worker_init_fn)
 
 if FLAGS.use_wandb:
-    wandb.init(project=("Diffusion-SS3D_pretrain" + str(FLAGS.data_ratio)), entity="dev", name=os.path.basename(LOG_DIR))
+    wandb.init(project=("Diffusion-SS3D_pretrain_" + str(FLAGS.data_ratio)), entity="dev", name=os.path.basename(LOG_DIR))
     wandb.config = {"learning_rate": BASE_LEARNING_RATE, "epochs": MAX_EPOCH, "batch_size": BATCH_SIZE}
 
 

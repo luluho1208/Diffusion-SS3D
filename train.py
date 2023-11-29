@@ -165,7 +165,7 @@ TEST_DATALOADER = DataLoader(
 )
 
 if FLAGS.use_wandb:
-    wandb.init(project=("Diffusion-SS3D_train" + str(FLAGS.data_ratio)), entity="dev", name=os.path.basename(LOG_DIR))
+    wandb.init(project=("Diffusion-SS3D_train_" + str(FLAGS.data_ratio)), entity="dev", name=os.path.basename(LOG_DIR))
     wandb.config = {"learning_rate": BASE_LEARNING_RATE, "epochs": MAX_EPOCH, "batch_size": BATCH_SIZE}
 
 # Used for Pseudo box generation and AP calculation
