@@ -36,8 +36,9 @@ Install TensorFlow (for TensorBoard) (We tested this repo with TensorFlow 2.9.1.
 pip install tensorflow
 ```
 
-Install and register for [wandb](https://wandb.ai/site) 
-[QuickStart](https://docs.wandb.ai/quickstart)
+Install and register for [wandb](https://wandb.ai/site)
+
+[Wandb QuickStart](https://docs.wandb.ai/quickstart) When you have a wandb account, please substitute "entity" in wandb.init() with your own account name. (for both train.py and pretrain.py)
 ```
 pip install wandb
 ```
