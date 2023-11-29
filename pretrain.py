@@ -55,7 +55,7 @@ parser.add_argument("--labeled_sample_list", default="scannetv2_train_0.05.txt",
 parser.add_argument("--print_interval", type=int, default=10, help="batch inverval to print loss")
 parser.add_argument("--eval_interval", type=int, default=10, help="epoch inverval to evaluate model")
 parser.add_argument("--resume", action="store_true")
-parser.add_argument("--data_ratio", type=int, default=5, help="data_ratio")
+parser.add_argument("--data_ratio", type=float, default=0.05, help="data_ratio")
 parser.add_argument("--iterative_train", type=int, default=2, help="Number of forward training passes.")
 parser.add_argument("--size_snr_scale", type=float, default=2.0, help="snr_scale for diffusion size.")
 parser.add_argument("--label_snr_scale", type=float, default=4.0, help="snr_scale for diffusion label.")
